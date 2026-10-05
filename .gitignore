@@ -1,0 +1,9 @@
+.next
+node_modules
+out
+npm-debug.log*
+.env.local
+.env
+client_secret*.json
+.DS_Store
+*.tsbuildinfo
