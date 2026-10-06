@@ -1,12 +1,42 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 import { checkoutSchema } from '@/lib/security';
 import { createServerCheckoutPayload } from '@/lib/payments';
-import { createCashfreePaymentLink } from '@/lib/cashfree';
+import { createCashfreeOrder } from '@/lib/cashfree';
 import { createPayPalOrder } from '@/lib/paypal';
+import { getSupabaseAdminClient } from '@/lib/supabase';
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  const authorization = request.headers.get('authorization');
+  const accessToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!accessToken || !supabaseUrl || !anonKey) {
+    return NextResponse.json({ ok: false, error: 'Sign in is required before checkout.' }, { status: 401 });
+  }
+
+  const authClient = createClient(supabaseUrl, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: { user }, error: authError } = await authClient.auth.getUser(accessToken);
+  if (authError || !user?.email) {
+    return NextResponse.json({ ok: false, error: 'Your session is invalid. Please sign in again.' }, { status: 401 });
+  }
+
+  const admin = getSupabaseAdminClient();
+  if (!admin) {
+    return NextResponse.json({ ok: false, error: 'Order storage is not configured. Please contact support.' }, { status: 503 });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Invalid checkout payload' }, { status: 400 });
+  }
+
   const parsed = checkoutSchema.safeParse(body);
 
   if (!parsed.success) {
@@ -15,10 +45,24 @@ export async function POST(request: Request) {
 
   const payload = createServerCheckoutPayload(parsed.data.currency, parsed.data.productId);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  const { error: insertError } = await admin.from('store_orders').insert({
+    id: payload.orderId,
+    user_id: user.id,
+    product_id: payload.productId,
+    currency: payload.currency,
+    amount: payload.amount,
+    payment_provider: payload.provider,
+    status: 'pending',
+  });
+
+  if (insertError) {
+    console.error('Unable to save account order', insertError);
+    return NextResponse.json({ ok: false, error: 'Unable to save your order. Please try again.' }, { status: 500 });
+  }
 
   if (payload.provider === 'paypal') {
     try {
-      const returnUrl = new URL(parsed.data.returnUrl || '/success', siteUrl);
+      const returnUrl = new URL('/api/paypal/return', siteUrl);
       returnUrl.searchParams.set('orderId', payload.orderId);
 
       const cancelUrl = new URL('/checkout', siteUrl);
@@ -26,9 +70,21 @@ export async function POST(request: Request) {
         amount: payload.amount,
         currency: 'USD',
         orderId: payload.orderId,
+        buyerName: parsed.data.buyerName,
+        buyerEmail: user.email,
         returnUrl: returnUrl.toString(),
         cancelUrl: cancelUrl.toString(),
       });
+
+      const { error: updateError } = await admin
+        .from('store_orders')
+        .update({ provider_order_id: paypalOrder.paypalOrderId })
+        .eq('id', payload.orderId)
+        .eq('user_id', user.id);
+      if (updateError) {
+        console.error('Unable to attach PayPal order to account', updateError);
+        return NextResponse.json({ ok: false, error: 'The payment was created, but the order could not be linked. Contact support before retrying.' }, { status: 500 });
+      }
 
       return NextResponse.json({
         ok: true,
@@ -41,6 +97,12 @@ export async function POST(request: Request) {
         redirectUrl: paypalOrder.approvalUrl,
       });
     } catch (error: unknown) {
+      const { error: updateError } = await admin
+        .from('store_orders')
+        .update({ status: 'failed' })
+        .eq('id', payload.orderId)
+        .eq('user_id', user.id);
+      if (updateError) console.error('Unable to mark PayPal order as failed', updateError);
       const message = error instanceof Error ? error.message : 'Unable to create PayPal checkout.';
       return NextResponse.json({ ok: false, error: message }, { status: 502 });
     }
@@ -52,13 +114,25 @@ export async function POST(request: Request) {
       returnUrl.searchParams.set('orderId', payload.orderId);
 
       const notifyUrl = new URL('/api/webhooks/cashfree', siteUrl);
-      const cashfreeLink = await createCashfreePaymentLink({
+      const cashfreeOrder = await createCashfreeOrder({
         amount: payload.amount,
         currency: 'INR',
         orderId: payload.orderId,
+        buyerName: parsed.data.buyerName,
+        buyerEmail: user.email,
         returnUrl: returnUrl.toString(),
         notifyUrl: notifyUrl.toString(),
       });
+
+      const { error: updateError } = await admin
+        .from('store_orders')
+        .update({ provider_order_id: cashfreeOrder.orderId })
+        .eq('id', payload.orderId)
+        .eq('user_id', user.id);
+      if (updateError) {
+        console.error('Unable to attach Cashfree order to account', updateError);
+        return NextResponse.json({ ok: false, error: 'The payment was created, but the order could not be linked. Contact support before retrying.' }, { status: 500 });
+      }
 
       return NextResponse.json({
         ok: true,
@@ -66,23 +140,19 @@ export async function POST(request: Request) {
         amount: payload.amount,
         currency: payload.currency,
         orderId: payload.orderId,
-        providerOrderId: cashfreeLink.linkId,
+        providerOrderId: cashfreeOrder.orderId,
+        paymentSessionId: cashfreeOrder.paymentSessionId,
         mode: payload.mode,
-        redirectUrl: cashfreeLink.paymentUrl,
       });
     } catch (error: unknown) {
+      const { error: updateError } = await admin
+        .from('store_orders')
+        .update({ status: 'failed' })
+        .eq('id', payload.orderId)
+        .eq('user_id', user.id);
+      if (updateError) console.error('Unable to mark Cashfree order as failed', updateError);
       const message = error instanceof Error ? error.message : 'Unable to create Cashfree checkout.';
       return NextResponse.json({ ok: false, error: message }, { status: 502 });
     }
   }
-
-  return NextResponse.json({
-    ok: true,
-    provider: payload.provider,
-    amount: payload.amount,
-    currency: payload.currency,
-    orderId: payload.orderId,
-    mode: payload.mode,
-    redirectUrl: parsed.data.returnUrl || `/success?orderId=${payload.orderId}`,
-  });
 }

@@ -1,4 +1,5 @@
 import type { CurrencyCode, PaymentProvider } from '@/types/payment';
+import { randomUUID } from 'crypto';
 
 export function getPaymentProvider(currency: CurrencyCode): PaymentProvider {
   return currency === 'INR' ? 'cashfree' : 'paypal';
@@ -9,7 +10,7 @@ export function createServerCheckoutPayload(currency: CurrencyCode, productId: s
     provider: getPaymentProvider(currency),
     currency,
     productId,
-    orderId: `SDX-${Math.random().toString(36).slice(2, 9).toUpperCase()}`,
+    orderId: `SDX-${randomUUID().replace(/-/g, '').slice(0, 16).toUpperCase()}`,
     amount: currency === 'INR' ? 299 : 16,
     mode: 'server_verified',
   };

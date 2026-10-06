@@ -10,6 +10,6 @@ export const contactSchema = z.object({
 
 export const checkoutSchema = z.object({
   currency: z.enum(['INR', 'USD']),
-  productId: z.string().min(3).max(120),
-  returnUrl: z.string().url().optional().or(z.literal('')),
+  productId: z.literal('selldrox-digital-vault'),
+  buyerName: z.string().trim().min(2).max(80),
 });

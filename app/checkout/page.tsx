@@ -53,7 +53,7 @@ export default async function CheckoutPage() {
             Secure checkout - Verified order - Temporary access after successful payment
           </div>
           <div className="mt-4 text-center text-sm text-slate-300">
-            Already have an account? <Link href="/login" className="text-blue-200">Login</Link>
+            Sign in is required to link orders to your account. <Link href="/login" className="text-blue-200">Login</Link>
           </div>
         </div>
       </div>

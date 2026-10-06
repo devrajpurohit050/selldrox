@@ -44,10 +44,71 @@ async function getPayPalAccessToken() {
   return data.access_token;
 }
 
+export async function verifyPayPalWebhook(
+  headers: Record<string, string>,
+  webhookEvent: unknown,
+) {
+  const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+  if (!webhookId) {
+    throw new Error('PayPal webhook verification is not configured. Add PAYPAL_WEBHOOK_ID.');
+  }
+
+  const accessToken = await getPayPalAccessToken();
+  const response = await fetch(`${paypalBaseUrl}/v1/notifications/verify-webhook-signature`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      auth_algo: headers['paypal-auth-algo'],
+      cert_url: headers['paypal-cert-url'],
+      transmission_id: headers['paypal-transmission-id'],
+      transmission_sig: headers['paypal-transmission-sig'],
+      transmission_time: headers['paypal-transmission-time'],
+      webhook_id: webhookId,
+      webhook_event: webhookEvent,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Unable to verify PayPal webhook (${response.status}).`);
+  }
+
+  const result: { verification_status?: string } = await response.json();
+  return result.verification_status === 'SUCCESS';
+}
+
+export async function capturePayPalOrder(orderId: string) {
+  const accessToken = await getPayPalAccessToken();
+  const response = await fetch(`${paypalBaseUrl}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({}),
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Unable to capture PayPal order (${response.status}): ${details}`);
+  }
+
+  const result: {
+    status?: string;
+    purchase_units?: Array<{ payments?: { captures?: Array<{ status?: string }> } }>;
+  } = await response.json();
+  return result.status === 'COMPLETED' ||
+    result.purchase_units?.some((unit) => unit.payments?.captures?.some((capture) => capture.status === 'COMPLETED')) === true;
+}
+
 export async function createPayPalOrder(input: {
   amount: number;
   currency: 'USD';
   orderId: string;
+  buyerName: string;
+  buyerEmail: string;
   returnUrl: string;
   cancelUrl: string;
 }) {
@@ -64,6 +125,7 @@ export async function createPayPalOrder(input: {
       purchase_units: [
         {
           reference_id: input.orderId,
+          custom_id: input.orderId,
           description: 'SELLDROX Ultimate Digital Vault',
           amount: {
             currency_code: input.currency,
@@ -71,6 +133,12 @@ export async function createPayPalOrder(input: {
           },
         },
       ],
+      payer: {
+        email_address: input.buyerEmail,
+        name: {
+          given_name: input.buyerName,
+        },
+      },
       application_context: {
         brand_name: 'SELLDROX',
         landing_page: 'LOGIN',
