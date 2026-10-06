@@ -9,7 +9,7 @@ import { getSupabaseClient, isOAuthProviderEnabled } from '@/lib/supabase';
 
 type AuthMode = 'login' | 'signup';
 
-export function AuthForm({ mode }: { mode: AuthMode }) {
+export function AuthForm({ mode, redirectPath = '/account' }: { mode: AuthMode; redirectPath?: string }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,7 +17,9 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/account` : '/account';
+  const redirectTo = typeof window !== 'undefined'
+    ? new URL(redirectPath.startsWith('/') && !redirectPath.startsWith('//') ? redirectPath : '/account', window.location.origin).toString()
+    : '/account';
 
   const handleProviderLogin = async (provider: 'google' | 'apple') => {
     const supabase = getSupabaseClient();
@@ -102,7 +104,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         }
 
         setSuccess('Signed in successfully. Redirecting…');
-        window.location.href = '/account';
+        window.location.href = redirectPath;
       }
     } catch (submitError: unknown) {
       const message = submitError instanceof Error ? submitError.message : 'Authentication failed.';
@@ -180,7 +182,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
       <div className="mt-6 text-sm text-slate-300">
         {isLogin ? 'Need an account?' : 'Already signed up?'}{' '}
-        <Link href={isLogin ? '/signup' : '/login'} className="text-blue-200 hover:text-blue-100">
+        <Link
+          href={`${isLogin ? '/signup' : '/login'}${redirectPath === '/account' ? '' : `?next=${encodeURIComponent(redirectPath)}`}`}
+          className="text-blue-200 hover:text-blue-100"
+        >
           {isLogin ? 'Sign up' : 'Login'}
         </Link>
       </div>

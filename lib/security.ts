@@ -12,4 +12,5 @@ export const checkoutSchema = z.object({
   currency: z.enum(['INR', 'USD']),
   productId: z.literal('selldrox-digital-vault'),
   buyerName: z.string().trim().min(2).max(80),
+  buyerEmail: z.string().trim().email().max(254),
 });

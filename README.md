@@ -21,10 +21,10 @@ See `.env.example` for all required environment variables.
 2. In the Supabase dashboard, open **Project Settings → API** and copy the Project URL and public anon/publishable key to `.env.local` as `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 3. In **Authentication → URL Configuration**, set the Site URL to `https://selldrox.store` and add `http://localhost:3000/account`, `https://selldrox.store/account`, and your Vercel deployment URL followed by `/account` to the redirect allow list. OAuth and confirmation callbacks use the current site's origin, so they return to the domain where the user started sign-in.
 4. In **Google Cloud Console → Google Auth Platform → Branding**, set the app name to **SELLDROX** and configure the support email and authorized domain (`selldrox.store`). In **Clients**, create a Google OAuth Web client with `https://selldrox.store` and `http://localhost:3000` as authorized JavaScript origins, and `https://rnnawwxrawesqwcxfpbg.supabase.co/auth/v1/callback` as an authorized redirect URI. Add the resulting client ID and secret to the Google provider settings in Supabase. The Google consent screen's displayed app name is controlled by this Google branding configuration, not by the storefront code. Apple sign-in similarly requires credentials from Apple Developer.
-5. Run `supabase/migrations/001_init.sql`, then `supabase/migrations/002_account_order_isolation.sql` in the Supabase SQL Editor. The second migration creates per-account order history and tightens policies so accounts cannot read unowned or unlinked orders. Keep `SUPABASE_SERVICE_ROLE_KEY` configured only as a server-side Vercel environment variable.
+5. Run `supabase/migrations/001_init.sql`, `supabase/migrations/002_account_order_isolation.sql`, then `supabase/migrations/003_guest_checkout_account_linking.sql` in the Supabase SQL Editor. These migrations create per-account order history and allow a verified paid guest order to be claimed only by an account whose verified email matches the checkout email. Keep `SUPABASE_SERVICE_ROLE_KEY` configured only as a server-side Vercel environment variable.
 6. Restart the Next.js server after changing `.env.local`. The login and signup pages support Google, Apple, and email/password authentication.
 
-Checkout requires a signed-in account. New orders are stored against the authenticated Supabase user and appear in that account after payment verification. Orders from the older checkout implementation were not stored in Supabase, so they cannot be assigned to accounts automatically.
+Checkout does not require an account. Customers enter their name and email, pay, then sign in or create an account with that same verified email to link the provider-verified paid order to their account. Orders from the older checkout implementation were not stored in Supabase, so they cannot be assigned to accounts automatically.
 
 Never use a Supabase service-role key in a `NEXT_PUBLIC_*` variable or expose it in browser code. The service-role key is only for trusted server-side operations.
 
@@ -51,7 +51,7 @@ Never use a Supabase service-role key in a `NEXT_PUBLIC_*` variable or expose it
 4. Set `NEXT_PUBLIC_SITE_URL` to the production URL.
 5. Do not set a fixed `NEXT_PUBLIC_SUPABASE_REDIRECT_URL`; authentication callbacks use the active site's origin. Configure the matching production callback URL in Supabase as described above.
 6. Add `SUPABASE_SERVICE_ROLE_KEY`, `PAYPAL_WEBHOOK_ID`, and the other required server-only payment variables in Vercel. Never prefix secret keys with `NEXT_PUBLIC_`.
-7. Run both Supabase migrations before deploying the account-linked checkout.
+7. Run all three Supabase migrations before deploying guest checkout and account linking.
 8. Deploy.
 
 ## Notes
