@@ -5,16 +5,18 @@ const cashfreeEnv = process.env.CASHFREE_ENV || 'sandbox';
 const cashfreeBaseUrl =
   cashfreeEnv === 'production' ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
 
-type CashfreeLinkResponse = {
-  cf_link_id?: string;
-  link_id?: string;
-  link_url?: string;
+type CashfreeOrderResponse = {
+  cf_order_id?: string;
+  order_id?: string;
+  payment_session_id?: string;
 };
 
-export async function createCashfreePaymentLink(input: {
+export async function createCashfreeOrder(input: {
   amount: number;
   currency: 'INR';
   orderId: string;
+  buyerName: string;
+  buyerEmail: string;
   returnUrl: string;
   notifyUrl: string;
 }) {
@@ -22,9 +24,10 @@ export async function createCashfreePaymentLink(input: {
     throw new Error('Cashfree is not configured. Add CASHFREE_APP_ID and CASHFREE_SECRET_KEY.');
   }
 
-  const response = await fetch(`${cashfreeBaseUrl}/links`, {
+  const response = await fetch(`${cashfreeBaseUrl}/orders`, {
     method: 'POST',
     headers: {
+      Accept: 'application/json',
       'Content-Type': 'application/json',
       'x-api-version': '2023-08-01',
       'x-client-id': appId,
@@ -32,45 +35,42 @@ export async function createCashfreePaymentLink(input: {
       'x-idempotency-key': input.orderId,
     },
     body: JSON.stringify({
-      link_id: input.orderId,
-      link_amount: input.amount,
-      link_currency: input.currency,
-      link_purpose: 'SELLDROX Ultimate Digital Vault',
+      order_id: input.orderId,
+      order_amount: input.amount,
+      order_currency: input.currency,
       customer_details: {
-        customer_name: 'SELLDROX Customer',
+        customer_id: input.orderId.replace(/[^a-zA-Z0-9_-]/g, '_'),
+        customer_name: input.buyerName,
+        customer_email: input.buyerEmail,
         customer_phone: '9999999999',
-        customer_email: 'support@selldrox.com',
       },
-      link_meta: {
-        return_url: input.returnUrl,
+      order_meta: {
+        return_url: `${input.returnUrl}&cf_order_id={order_id}`,
         notify_url: input.notifyUrl,
-        upi_intent: false,
       },
-      link_notify: {
-        send_email: false,
-        send_sms: false,
-      },
-      link_partial_payments: false,
-      link_notes: {
+      order_note: 'SELLDROX Ultimate Digital Vault',
+      order_tags: {
         product_id: 'selldrox-digital-vault',
+        buyer_name: input.buyerName,
+        buyer_email: input.buyerEmail,
       },
     }),
   });
 
   if (!response.ok) {
     const details = await response.text();
-    throw new Error(`Unable to create Cashfree payment link (${response.status}): ${details}`);
+    throw new Error(`Unable to create Cashfree order (${response.status}): ${details}`);
   }
 
-  const data: CashfreeLinkResponse = await response.json();
+  const data: CashfreeOrderResponse = await response.json();
 
-  if (!data.link_url || !data.link_id) {
-    throw new Error('Cashfree did not return a payment link URL.');
+  if (!data.payment_session_id || !data.order_id) {
+    throw new Error('Cashfree did not return a payment session.');
   }
 
   return {
-    cashfreeLinkId: data.cf_link_id || data.link_id,
-    linkId: data.link_id,
-    paymentUrl: data.link_url,
+    cashfreeOrderId: data.cf_order_id || data.order_id,
+    orderId: data.order_id,
+    paymentSessionId: data.payment_session_id,
   };
 }
