@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { z } from 'zod';
 
 import { getSupabaseAdminClient } from '@/lib/supabase';
+
+const claimSchema = z.object({
+  orderId: z.string().regex(/^SDX-[A-F0-9]{16}$/),
+});
 
 export async function POST(request: Request) {
   const accessToken = request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
@@ -27,14 +32,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'Invalid order claim request.' }, { status: 400 });
   }
 
-  if (
-    typeof body !== 'object' ||
-    body === null ||
-    !('orderId' in body) ||
-    typeof body.orderId !== 'string' ||
-    !/^SDX-[A-F0-9]{16}$/.test(body.orderId)
-  ) {
+  const parsed = claimSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json({ ok: false, error: 'Invalid order ID.' }, { status: 400 });
+  }
+
+  const checkoutVerificationToken = request.headers.get('x-checkout-verification')?.trim();
+  let verifiedCheckoutEmail: string | null = null;
+  if (checkoutVerificationToken) {
+    const { data: { user: checkoutUser }, error: checkoutAuthError } =
+      await authClient.auth.getUser(checkoutVerificationToken);
+    if (checkoutAuthError || !checkoutUser?.email || !checkoutUser.email_confirmed_at) {
+      return NextResponse.json({ ok: false, error: 'The checkout email verification has expired. Request a new code.' }, { status: 401 });
+    }
+    verifiedCheckoutEmail = checkoutUser.email.toLowerCase();
   }
 
   const admin = getSupabaseAdminClient();
@@ -45,14 +56,14 @@ export async function POST(request: Request) {
   const { data: order, error: lookupError } = await admin
     .from('store_orders')
     .select('id, user_id, buyer_email, status')
-    .eq('id', body.orderId)
+    .eq('id', parsed.data.orderId)
     .maybeSingle();
 
   if (lookupError) {
     console.error('Unable to look up guest order', lookupError);
     return NextResponse.json({ ok: false, error: 'Unable to verify this purchase.' }, { status: 500 });
   }
-  if (!order || order.buyer_email?.toLowerCase() !== user.email.toLowerCase()) {
+  if (!order) {
     return NextResponse.json({ ok: false, error: 'This order does not match your account email.' }, { status: 404 });
   }
   if (order.user_id && order.user_id !== user.id) {
@@ -68,10 +79,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, linked: true });
   }
 
+  const buyerEmail = order.buyer_email?.toLowerCase();
+  if (buyerEmail !== user.email.toLowerCase() && buyerEmail !== verifiedCheckoutEmail) {
+    return NextResponse.json(
+      { ok: false, needsEmailVerification: true, error: 'Verify the email used during checkout to link this purchase.' },
+      { status: 403 },
+    );
+  }
   const { data: linkedOrder, error: linkError } = await admin
     .from('store_orders')
     .update({ user_id: user.id })
-    .eq('id', body.orderId)
+    .eq('id', parsed.data.orderId)
     .eq('status', 'paid')
     .is('user_id', null)
     .select('id')

@@ -26,6 +26,10 @@ See `.env.example` for all required environment variables.
 
 Checkout does not require an account. Customers enter their name and email, pay, then sign in or create an account with that same verified email to link the provider-verified paid order to their account. Orders from the older checkout implementation were not stored in Supabase, so they cannot be assigned to accounts automatically.
 
+If a customer wants to use a different account email, they must first sign in to the target account, then open the one-time verification link sent to the checkout email on the same device and browser. Add these two URLs to Supabase Authentication → URL Configuration → Redirect URLs:
+   https://selldrox.store/auth/checkout-email-verified*
+   https://selldrox.store/success*
+
 Never use a Supabase service-role key in a `NEXT_PUBLIC_*` variable or expose it in browser code. The service-role key is only for trusted server-side operations.
 
 ## Cashfree setup
