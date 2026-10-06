@@ -17,10 +17,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const configuredRedirectTo = process.env.NEXT_PUBLIC_SUPABASE_REDIRECT_URL;
-  const redirectTo =
-    configuredRedirectTo ||
-    (typeof window !== 'undefined' ? `${window.location.origin}/account` : '/account');
+  const redirectTo = typeof window !== 'undefined' ? `${window.location.origin}/account` : '/account';
 
   const handleProviderLogin = async (provider: 'google' | 'apple') => {
     const supabase = getSupabaseClient();
