@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Globe, Menu, MoonStar, SunMedium, User } from 'lucide-react';
 
@@ -16,6 +16,7 @@ export function Navbar({
   detectCurrencyInBrowser: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [currency, setCurrency] = useState<CurrencyCode>(initialCurrency);
   const [open, setOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -175,10 +176,12 @@ export function Navbar({
             {isDark ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
           </button>
 
-          <Link href="/account" className={`flex items-center gap-2 rounded-full border px-3 py-2 text-sm ${controlClasses}`}>
-            <User className="h-4 w-4" />
-            Account
-          </Link>
+          {pathname !== '/checkout' ? (
+            <Link href="/account" className={`flex items-center gap-2 rounded-full border px-3 py-2 text-sm ${controlClasses}`}>
+              <User className="h-4 w-4" />
+              Account
+            </Link>
+          ) : null}
           <Link href="/checkout" className="primary-btn">GET ACCESS</Link>
         </div>
 
@@ -207,7 +210,9 @@ export function Navbar({
             <div className="pt-2">
               {currencyToggle('Mobile currency selector')}
             </div>
-            <Link href="/account" onClick={() => setOpen(false)} className={`block rounded-xl border px-3 py-2 ${isDark ? 'border-white/10 bg-white/5 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-800'}`}>Account</Link>
+            {pathname !== '/checkout' ? (
+              <Link href="/account" onClick={() => setOpen(false)} className={`block rounded-xl border px-3 py-2 ${isDark ? 'border-white/10 bg-white/5 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-800'}`}>Account</Link>
+            ) : null}
           </div>
         </div>
       ) : null}
