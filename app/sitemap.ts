@@ -1,12 +1,15 @@
 import type { MetadataRoute } from 'next';
 
+import { siteConfig } from '@/config/site';
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [
-    { url: 'https://example.com/', lastModified: new Date() },
-    { url: 'https://example.com/about', lastModified: new Date() },
-    { url: 'https://example.com/contact', lastModified: new Date() },
-    { url: 'https://example.com/privacy-policy', lastModified: new Date() },
-    { url: 'https://example.com/refund-policy', lastModified: new Date() },
-    { url: 'https://example.com/disclaimer', lastModified: new Date() },
-  ];
+  const lastModified = new Date();
+  const routes = ['', '/about', '/checkout', '/contact', '/login', '/signup', '/privacy-policy', '/refund-policy', '/disclaimer'];
+
+  return routes.map((route) => ({
+    url: `${siteConfig.url}${route}`,
+    lastModified,
+    changeFrequency: route === '' ? 'weekly' : 'monthly',
+    priority: route === '' ? 1 : 0.7,
+  }));
 }

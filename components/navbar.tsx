@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Globe, Menu, MoonStar, SunMedium, User } from 'lucide-react';
+import { Globe, Menu, MoonStar, SunMedium, User } from 'lucide-react';
 
 import type { CurrencyCode } from '@/types/payment';
 
@@ -108,6 +108,42 @@ export function Navbar({
     : 'border-slate-200 bg-slate-50 text-slate-900 hover:bg-slate-100';
 
   const linkClasses = isDark ? 'text-slate-100' : 'text-slate-800';
+  const currencyOptions: CurrencyCode[] = ['INR', 'USD'];
+
+  const currencyToggle = (label: string) => (
+    <div
+      className={`flex items-center gap-2 rounded-full border p-1 ${controlClasses}`}
+      role="group"
+      aria-label={label}
+    >
+      <Globe className={`ml-2 h-4 w-4 ${isDark ? 'text-blue-200' : 'text-blue-600'}`} />
+      <div className="grid grid-cols-2 rounded-full">
+        {currencyOptions.map((option) => {
+          const isSelected = currency === option;
+
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => handleCurrency(option)}
+              aria-pressed={isSelected}
+              className={`h-8 min-w-12 rounded-full px-3 text-xs font-bold transition ${
+                isSelected
+                  ? isDark
+                    ? 'bg-white text-slate-950 shadow-sm'
+                    : 'bg-slate-950 text-white shadow-sm'
+                  : isDark
+                    ? 'text-slate-300 hover:text-white'
+                    : 'text-slate-600 hover:text-slate-950'
+              }`}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   return (
     <header className={`sticky top-0 z-50 border-b backdrop-blur-xl ${shellClasses}`}>
@@ -128,19 +164,7 @@ export function Navbar({
         </Link>
 
         <div className="hidden items-center gap-3 md:flex">
-          <div className={`flex items-center gap-2 rounded-full border px-3 py-2 ${controlClasses}`}>
-            <Globe className={`h-4 w-4 ${isDark ? 'text-blue-200' : 'text-blue-600'}`} />
-            <select
-              aria-label="Select currency"
-              value={currency}
-              onChange={(event) => handleCurrency(event.target.value as CurrencyCode)}
-              className={`bg-transparent text-sm outline-none ${isDark ? 'text-slate-100' : 'text-slate-800'}`}
-            >
-              <option value="INR" className={isDark ? 'bg-slate-900' : 'bg-white'}>INR</option>
-              <option value="USD" className={isDark ? 'bg-slate-900' : 'bg-white'}>USD</option>
-            </select>
-            <ChevronDown className={`h-4 w-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
-          </div>
+          {currencyToggle('Select currency')}
 
           <button
             type="button"
@@ -181,10 +205,7 @@ export function Navbar({
             <Link href="/contact" onClick={() => setOpen(false)}>FAQ</Link>
             <Link href="/about" onClick={() => setOpen(false)}>About</Link>
             <div className="pt-2">
-              <select aria-label="Mobile currency selector" value={currency} onChange={(event) => handleCurrency(event.target.value as CurrencyCode)} className={`w-full rounded-xl border p-3 outline-none ${isDark ? 'border-white/10 bg-slate-950 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-800'}`}>
-                <option value="INR">INR</option>
-                <option value="USD">USD</option>
-              </select>
+              {currencyToggle('Mobile currency selector')}
             </div>
             <Link href="/account" onClick={() => setOpen(false)} className={`block rounded-xl border px-3 py-2 ${isDark ? 'border-white/10 bg-white/5 text-slate-100' : 'border-slate-200 bg-slate-50 text-slate-800'}`}>Account</Link>
           </div>

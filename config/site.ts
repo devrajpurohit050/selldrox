@@ -1,8 +1,8 @@
 export const siteConfig = {
   name: 'SELLDROX',
-  title: 'SELLDROX - Premium Digital Resource Bundle',
-  description: 'Explore the SELLDROX digital vault with thousands of digital resources, templates, source code, creative assets, courses and more.',
-  url: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+  title: 'SELLDROX - Digital Products, AI Automation & USA Leads',
+  description: 'SELLDROX by Dev Rajpurohit offers digital products, AI automation resources, USA leads, business templates, source code, creative assets, courses and growth tools.',
+  url: process.env.NEXT_PUBLIC_SITE_URL || 'https://selldrox.vercel.app',
   supportEmail: process.env.SUPPORT_EMAIL || 'support@selldrox.com',
   productSlug: 'selldrox-digital-vault',
 };

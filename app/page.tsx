@@ -171,10 +171,12 @@ export default async function HomePage() {
             </div>
           </div>
           <div className="space-y-6">
-            <Image src="/asstes/product img 1.png" alt="Resource preview" width={900} height={700} className="rounded-[28px] border border-white/10 object-cover" />
-            <div className="grid gap-6 sm:grid-cols-2">
-              <Image src="/asstes/Product img 2.png" alt="Dashboard preview" width={500} height={400} className="rounded-[24px] border border-white/10 object-cover" />
-              <Image src="/asstes/Product img 3.png" alt="Asset preview" width={500} height={400} className="rounded-[24px] border border-white/10 object-cover" />
+            <Image src="/asstes/product img 1.png" alt="Resource preview" width={900} height={700} className="w-full rounded-[28px] border border-white/10 object-cover" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Image src="/asstes/Product img 2.png" alt="Dashboard preview" width={560} height={440} className="aspect-[1.35/1] w-full rounded-[24px] border border-white/10 object-cover" />
+              <Image src="/asstes/Product img 3.png" alt="Asset preview" width={560} height={440} className="aspect-[1.35/1] w-full rounded-[24px] border border-white/10 object-cover" />
+              <Image src="/asstes/Product img 4.png" alt="Marketing resource preview" width={560} height={440} className="aspect-[1.35/1] w-full rounded-[24px] border border-white/10 object-cover" />
+              <Image src="/asstes/Product img 5.png" alt="Creative bundle preview" width={560} height={440} className="aspect-[1.35/1] w-full rounded-[24px] border border-white/10 object-cover" />
             </div>
           </div>
         </div>

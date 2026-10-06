@@ -7,3 +7,6 @@ npm-debug.log*
 client_secret*.json
 .DS_Store
 *.tsbuildinfo
+
+.vercel
+.env*
