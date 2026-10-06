@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import Image from 'next/image';
 
 import { formatPrice, getPriceForCurrency } from '@/lib/pricing';
@@ -51,9 +50,6 @@ export default async function CheckoutPage() {
           <CheckoutButton currency={preferred} />
           <div className="mt-6 text-center text-xs text-slate-400">
             Secure checkout - Verified order - Temporary access after successful payment
-          </div>
-          <div className="mt-4 text-center text-sm text-slate-300">
-            Sign in is required to link orders to your account. <Link href="/login" className="text-blue-200">Login</Link>
           </div>
         </div>
       </div>
